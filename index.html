@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viral Breach | H2 Biology 9744</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0e14;
+            --card: #161b22;
+            --accent-blue: #58a6ff; /* HIV */
+            --accent-red: #ff7b72;  /* Influenza */
+            --text: #c9d1d9;
+            --success: #3fb950;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header & Navigation */
+        header {
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+            background: rgba(22, 27, 34, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #30363d;
+            z-index: 100;
+        }
+
+        .mode-selector {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .mode-btn {
+            background: transparent;
+            border: 2px solid #30363d;
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .mode-btn.active-hiv { border-color: var(--accent-blue); color: var(--accent-blue); box-shadow: 0 0 10px rgba(88, 166, 255, 0.3); }
+        .mode-btn.active-inf { border-color: var(--accent-red); color: var(--accent-red); box-shadow: 0 0 10px rgba(255, 123, 114, 0.3); }
+
+        /* Simulation Canvas */
+        #stage {
+            position: relative;
+            width: 100%;
+            flex-grow: 1;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1c2128 0%, #0a0e14 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* The Host Cell */
+        #cell-membrane {
+            position: absolute;
+            bottom: -50px;
+            width: 120%;
+            height: 300px;
+            background: #21262d;
+            border-top: 6px solid #30363d;
+            border-radius: 50% 50% 0 0;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* The Virus Particle */
+        #virus-container {
+            position: absolute;
+            top: 100px;
+            width: 100px;
+            height: 100px;
+            cursor: grab;
+            z-index: 50;
+            transition: transform 0.1s linear;
+        }
+
+        .virus-body {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Receptors */
+        .receptor {
+            position: absolute;
+            width: 12px;
+            height: 40px;
+            background: #f2cc60;
+            border-radius: 6px;
+            bottom: 240px; /* Sits on membrane */
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .co-receptor {
+            width: 10px;
+            height: 30px;
+            background: #ff7b72;
+            left: 53%;
+            display: none;
+        }
+
+        /* Instruction Panel */
+        .info-card {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            width: 320px;
+            background: var(--card);
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+
+        .info-card h3 { margin: 0 0 10px 0; color: var(--success); font-size: 18px; }
+        .info-card p { margin: 0; font-size: 14px; line-height: 1.5; color: #8b949e; }
+
+        /* Animations */
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .endosome {
+            border: 4px dashed #8b949e !important;
+            background: transparent !important;
+        }
+
+        #interaction-msg {
+            position: absolute;
+            top: 220px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #f2cc60;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Viral Entry: Molecular Mechanisms</h1>
+    <div class="mode-selector">
+        <button id="btn-hiv" class="mode-btn" onclick="initSimulation('hiv')">HIV (Fusion)</button>
+        <button id="btn-inf" class="mode-btn" onclick="initSimulation('influenza')">Influenza (Endocytosis)</button>
+    </div>
+</header>
+
+<div id="stage">
+    <div id="interaction-msg">Drag the virus to the receptor</div>
+    
+    <div id="virus-container" class="pulse">
+        <div id="virus-visual" class="virus-body"></div>
+    </div>
+
+    <div id="receptor" class="receptor"></div>
+    <div id="co-receptor" class="receptor co-receptor"></div>
+
+    <div id="cell-membrane"></div>
+
+    <div class="info-card">
+        <h3 id="info-title">Welcome</h3>
+        <p id="info-text">Select a virus to begin the simulation. Grounded in 9744 H2 Biology syllabus.</p>
+    </div>
+</div>
+
+<script>
+    const virus = document.getElementById('virus-container');
+    const visual = document.getElementById('virus-visual');
+    const membrane = document.getElementById('cell-membrane');
+    const receptor = document.getElementById('receptor');
+    const coreceptor = document.getElementById('co-receptor');
+    const title = document.getElementById('info-title');
+    const text = document.getElementById('info-text');
+    const msg = document.getElementById('interaction-msg');
+
+    let currentType = '';
+    let isDragging = false;
+    let state = 'start'; // start, docked, entered
+
+    function initSimulation(type) {
+        currentType = type;
+        state = 'start';
+        msg.style.display = 'block';
+        msg.innerText = "Drag the virus to the receptor";
+        
+        // Reset UI
+        document.getElementById('btn-hiv').className = 'mode-btn' + (type === 'hiv' ? ' active-hiv' : '');
+        document.getElementById('btn-inf').className = 'mode-btn' + (type === 'inf' ? ' active-inf' : '');
+        
+        virus.style.top = '100px';
+        virus.style.left = 'calc(50% - 50px)';
+        virus.style.transform = 'scale(1)';
+        visual.style.opacity = '1';
+        membrane.className = '';
+        membrane.style.height = '300px';
+
+        if (type === 'hiv') {
+            visual.style.backgroundColor = 'var(--accent-blue)';
+            visual.innerText = 'HIV (gp120)';
+            coreceptor.style.display = 'block';
+            title.innerText = "Target: Helper T Cell";
+            text.innerText = "HIV is an enveloped retrovirus. It looks for CD4 receptors and CCR5/CXCR4 co-receptors.";
+        } else {
+            visual.style.backgroundColor = 'var(--accent-red)';
+            visual.innerText = 'Flu (HA)';
+            coreceptor.style.display = 'none';
+            title.innerText = "Target: Epithelial Cell";
+            text.innerText = "Influenza uses Hemagglutinin (HA) to bind to Sialic Acid receptors on host cells.";
+        }
+    }
+
+    // Drag Logic
+    virus.onmousedown = function(event) {
+        if(state !== 'start') return;
+        isDragging = true;
+        virus.classList.remove('pulse');
+    };
+
+    document.onmousemove = function(event) {
+        if (!isDragging) return;
+        let x = event.clientX - 50;
+        let y = event.clientY - 50;
+        virus.style.left = x + 'px';
+        virus.style.top = y + 'px';
+
+        // Collision Detection with Receptor
+        let vRect = virus.getBoundingClientRect();
+        let rRect = receptor.getBoundingClientRect();
+
+        if (vRect.bottom > rRect.top && Math.abs(vRect.left - rRect.left) < 50) {
+            isDragging = false;
+            dockVirus();
+        }
+    };
+
+    document.onmouseup = () => isDragging = false;
+
+    function dockVirus() {
+        state = 'docked';
+        msg.style.display = 'none';
+        virus.style.left = 'calc(50% - 50px)';
+        virus.style.top = '200px';
+
+        if (currentType === 'hiv') {
+            title.innerText = "gp120 - CD4 Binding";
+            text.innerText = "Binding triggers a conformational change in gp120, allowing it to bind to the co-receptor. Next: gp41 pierces the membrane.";
+            setTimeout(hivFusion, 2000);
+        } else {
+            title.innerText = "Receptor-Mediated Endocytosis";
+            text.innerText = "The binding of HA to Sialic acid triggers the host cell to invaginate the membrane.";
+            setTimeout(fluEndocytosis, 2000);
+        }
+    }
+
+    function hivFusion() {
+        title.innerText = "Membrane Fusion";
+        text.innerText = "The viral envelope fuses DIRECTLY with the host cell surface membrane. The capsid is released into the cytosol.";
+        visual.style.transform = 'scale(1.5)';
+        visual.style.opacity = '0';
+        membrane.style.borderTopColor = 'var(--accent-blue)';
+        setTimeout(() => {
+            visual.innerText = "CAPSID RELEASED";
+            visual.style.opacity = '1';
+            visual.style.transform = 'scale(0.5) translateY(200px)';
+        }, 1000);
+    }
+
+    function fluEndocytosis() {
+        title.innerText = "Endosome Formation";
+        text.innerText = "The virus is enclosed in an endosome. As the pH drops inside, HA changes shape to fuse the viral envelope with the endosomal membrane.";
+        
+        // Visualizing Endocytosis
+        membrane.style.height = '600px';
+        virus.style.top = '400px';
+        
+        setTimeout(() => {
+            visual.classList.add('endosome');
+            title.innerText = "Uncoating";
+            text.innerText = "Fusion with endosomal membrane releases 8 segments of negative-sense RNA (RNPs) into the cytosol.";
+            visual.innerText = "RNPs RELEASED";
+        }, 1500);
+    }
+
+    // Initialize default
+    initSimulation('hiv');
+</script>
+
+</body>
+</html>
