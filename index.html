@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fluid Dynamics | H2 Biology 9744</title>
+    <style>
+        :root {
+            --bg: #020617;
+            --membrane: #475569;
+            --hiv: #0ea5e9;
+            --flu: #f43f5e;
+            --gold: #fbbf24;
+            --glass: rgba(15, 23, 42, 0.9);
+        }
+
+        * { touch-action: none; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: #f1f5f9;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 15px;
+            text-align: center;
+            background: linear-gradient(to bottom, #0f172a, transparent);
+            z-index: 100;
+        }
+
+        .tab-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border-radius: 20px;
+            background: #1e293b;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #94a3b8;
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.4s all cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab.active-hiv { border-color: var(--hiv); color: var(--hiv); box-shadow: 0 0 15px rgba(14, 165, 233, 0.3); }
+        .tab.active-flu { border-color: var(--flu); color: var(--flu); box-shadow: 0 0 15px rgba(244, 63, 94, 0.3); }
+
+        #stage {
+            flex-grow: 1;
+            position: relative;
+            background: radial-gradient(circle at 50% 30%, #111827 0%, #020617 100%);
+        }
+
+        svg { width: 100%; height: 100%; pointer-events: none; }
+
+        #drag-hitbox {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            left: calc(50% - 50px);
+            top: 15%;
+            z-index: 200;
+            cursor: grab;
+        }
+
+        .info-card {
+            position: absolute;
+            bottom: 50px;
+            left: 15px;
+            right: 15px;
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h2 { margin: 0 0 5px 0; font-size: 1.1rem; color: #10b981; }
+        p { margin: 0; font-size: 0.85rem; color: #94a3b8; line-height: 1.5; }
+
+        .tag {
+            display: inline-block;
+            margin-bottom: 8px;
+            padding: 3px 10px;
+            background: rgba(251, 191, 36, 0.15);
+            border-radius: 6px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            color: var(--gold);
+            text-transform: uppercase;
+        }
+
+        /* Fluid/Gooey Filter */
+        #membrane-path { transition: stroke 1s ease; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-size: 0.6rem; color: #475569; letter-spacing: 2px; font-weight: 800;">FLUID MOSAIC SIMULATOR</div>
+    <div class="tab-group">
+        <div id="tab-hiv" class="tab" onclick="init('hiv')">HIV FUSION</div>
+        <div id="tab-flu" class="tab" onclick="init('flu')">FLU ENDOCYTOSIS</div>
+    </div>
+</header>
+
+<div id="stage">
+    <div id="drag-hitbox"></div>
+    <svg id="canvas" viewBox="0 0 400 600">
+        <defs>
+            <filter id="goo">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo" />
+            </filter>
+        </defs>
+
+        <!-- Fluid Membrane Group -->
+        <g filter="url(#goo)">
+            <path id="membrane-path" d="M -50 400 L 450 400" stroke="var(--membrane)" stroke-width="12" fill="none" />
+            <circle id="v-envelope" r="35" fill="none" stroke-width="10" />
+            <!-- Secondary Endosome Ring -->
+            <circle id="v-endosome" r="0" fill="none" stroke="var(--membrane)" stroke-width="10" opacity="0" />
+        </g>
+
+        <!-- Dynamic Receptors (Integral Proteins) -->
+        <g id="receptor-system">
+            <g id="receptor-main">
+                <rect x="-8" y="-20" width="16" height="25" fill="var(--gold)" rx="4" />
+                <circle cx="0" cy="-22" r="6" fill="var(--gold)" />
+            </g>
+            <g id="receptor-co" opacity="0">
+                <rect x="15" y="-15" width="10" height="20" fill="#f43f5e" rx="3" />
+            </g>
+        </g>
+
+        <!-- Viral Components -->
+        <g id="v-visuals">
+            <g id="spikes"></g>
+            <g id="payload">
+                <path d="M -5 -12 L 5 -12 L 0 12 Z" fill="white" opacity="0.8" />
+                <circle cx="10" cy="5" r="3" fill="white" opacity="0.5" />
+                <circle cx="-12" cy="0" r="2.5" fill="white" opacity="0.5" />
+            </g>
+        </g>
+    </svg>
+</div>
+
+<div class="info-card">
+    <div id="tag" class="tag">Ready</div>
+    <h2 id="title">Viral Breach</h2>
+    <p id="desc">Drag the virus toward the host cell receptors to begin.</p>
+</div>
+
+<script>
+    const membrane = document.getElementById('membrane-path');
+    const dragHitbox = document.getElementById('drag-hitbox');
+    const vEnv = document.getElementById('v-envelope');
+    const vEndo = document.getElementById('v-endosome');
+    const vVis = document.getElementById('v-visuals');
+    const spikes = document.getElementById('spikes');
+    const payload = document.getElementById('payload');
+    const recSys = document.getElementById('receptor-system');
+    const recCo = document.getElementById('receptor-co');
+    
+    let mode = '';
+    let state = 'idle';
+    let pos = { x: 200, y: 150 };
+    let membraneY = 400;
+
+    // --- 1. INITIALIZE ---
+    function init(m) {
+        mode = m;
+        state = 'idle';
+        pos = { x: 200, y: 150 };
+        membraneY = 400;
+
+        document.querySelectorAll('.tab').forEach(t => t.className = 'tab');
+        document.getElementById(`tab-${m}`).classList.add(`active-${m}`);
+
+        // Reset Elements
+        dragHitbox.style.top = '15%';
+        dragHitbox.style.left = 'calc(50% - 50px)';
+        vEnv.style.opacity = '1';
+        vEnv.style.transform = 'scale(1)';
+        vEnv.setAttribute('stroke', m === 'hiv' ? 'var(--hiv)' : 'var(--flu)');
+        vEndo.style.opacity = '0';
+        vEndo.setAttribute('r', '0');
+        recCo.style.opacity = m === 'hiv' ? '1' : '0';
+        membrane.style.stroke = "var(--membrane)";
+        membrane.setAttribute('d', "M -50 400 L 450 400");
+        payload.style.transform = 'translate(0,0)';
+        payload.style.opacity = '1';
+
+        // Draw Spikes
+        spikes.innerHTML = '';
+        for(let i=0; i<8; i++){
+            const a = (i/8)*Math.PI*2;
+            spikes.innerHTML += `<line x1="${Math.cos(a)*35}" y1="${Math.sin(a)*35}" x2="${Math.cos(a)*46}" y2="${Math.sin(a)*46}" stroke="${m === 'hiv' ? 'var(--hiv)' : 'var(--flu)'}" stroke-width="4" stroke-linecap="round" />`;
+        }
+
+        updateFrame();
+        document.getElementById('tag').innerText = "Ready";
+        document.getElementById('title').innerText = m === 'hiv' ? "HIV: Attachment" : "Flu: Attachment";
+        document.getElementById('desc').innerText = "Drag the virus slowly to bind with receptors.";
+    }
+
+    // --- 2. DRAG & FLUIDITY ENGINE ---
+    dragHitbox.addEventListener('pointermove', (e) => {
+        if (state !== 'idle' || e.buttons !== 1) return;
+
+        const stage = document.getElementById('stage').getBoundingClientRect();
+        pos.x = e.clientX - stage.left;
+        pos.y = e.clientY - stage.top;
+
+        dragHitbox.style.left = (pos.x - 50) + 'px';
+        dragHitbox.style.top = (pos.y - 50) + 'px';
+
+        // Calculate Membrane Ripple
+        const dist = 400 - pos.y;
+        let dip = 0;
+        if (dist < 100 && dist > 0) {
+            dip = (100 - dist) / 1.5;
+            membrane.setAttribute('d', `M -50 400 Q ${pos.x} ${400 + dip} 450 400`);
+        } else if (dist <= 0) {
+            dip = 40; // Max ripple during contact
+            membrane.setAttribute('d', `M -50 400 Q ${pos.x} 440 450 400`);
+        } else {
+            membrane.setAttribute('d', "M -50 400 L 450 400");
+        }
+
+        updateFrame(dip);
+
+        // Binding detection
+        if (pos.y > 365 && Math.abs(pos.x - 200) < 40) {
+            state = 'binding';
+            handleBinding();
+        }
+    });
+
+    function updateFrame(dip = 0) {
+        // Virus
+        vEnv.setAttribute('cx', pos.x);
+        vEnv.setAttribute('cy', pos.y);
+        vVis.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+        
+        // RECEPTOR FOLLOWING (Requirement)
+        // If the membrane dips at pos.x, move receptors to that dip
+        const recY = 400 + dip;
+        recSys.setAttribute('transform', `translate(${pos.x}, ${recY})`);
+    }
+
+    // --- 3. MOLECULAR PAUSE ---
+    function handleBinding() {
+        pos.x = 200; pos.y = 368;
+        updateFrame(32);
+        
+        document.getElementById('tag').innerText = "Specific Binding";
+        document.getElementById('tag').style.color = "var(--gold)";
+        document.getElementById('desc').innerText = "Glycoproteins recognize specific host cell receptors. (Pause for molecular recognition...)";
+
+        setTimeout(() => {
+            state = 'entering';
+            mode === 'hiv' ? runHIV() : runFlu();
+        }, 1800);
+    }
+
+    // --- 4. HIV FUSION (Fluid Pore) ---
+    function runHIV() {
+        document.getElementById('title').innerText = "Direct Fusion";
+        document.getElementById('desc').innerText = "Membranes merge. The viral envelope becomes part of the host surface.";
+
+        // Receptor slides apart as pore opens
+        recSys.style.transition = "all 1.5s ease";
+        recSys.style.transform = "translate(200px, 440px) scaleX(2) opacity(0)";
+
+        membrane.style.transition = "all 1s ease";
+        membrane.setAttribute('d', "M -50 400 Q 200 350 450 400");
+        
+        setTimeout(() => {
+            vEnv.style.transition = "all 1s ease";
+            vEnv.style.transform = "scaleY(0) translateY(40px)";
+            vEnv.style.opacity = "0";
+            membrane.style.stroke = "var(--hiv)";
+
+            setTimeout(() => {
+                payload.style.transition = "all 4s cubic-bezier(0.1, 0.5, 0.2, 1)";
+                payload.style.transform = "translate(60px, 150px) rotate(45deg)";
+                document.getElementById('title').innerText = "Uncoating";
+            }, 800);
+        }, 500);
+    }
+
+    // --- 5. FLU ENDOCYTOSIS (Fluid Scission) ---
+    function runFlu() {
+        document.getElementById('title').innerText = "Endocytosis";
+        document.getElementById('desc').innerText = "The membrane invaginates, pulling receptors and virus into a vesicle.";
+
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += 0.02;
+            pos.y = 368 + (progress * 50);
+            const dip = 32 + (progress * 80);
+            const neck = Math.max(0, 40 - progress * 40);
+            
+            membrane.setAttribute('d', `M -50 400 L ${200-neck} 400 Q 200 ${400+dip*1.5} ${200+neck} 400 L 450 400`);
+            updateFrame(dip);
+
+            if (progress >= 1) {
+                clearInterval(interval);
+                finishFlu();
+            }
+        }, 30);
+    }
+
+    function finishFlu() {
+        // Pinch off
+        membrane.setAttribute('d', "M -50 400 L 450 400");
+        vEndo.style.opacity = "1";
+        vEndo.setAttribute('r', "45");
+        vEndo.setAttribute('cx', pos.x);
+        vEndo.setAttribute('cy', pos.y);
+        
+        // Receptors are now inside the vesicle
+        recSys.setAttribute('transform', `translate(${pos.x}, ${pos.y}) scale(0.6)`);
+
+        setTimeout(() => {
+            pos.y = 520;
+            vEndo.style.transition = "all 1.5s ease";
+            vEndo.setAttribute('cy', "520");
+            updateFrame(0);
+
+            setTimeout(() => {
+                vEnv.style.transition = "all 1s";
+                vEndo.style.transition = "all 1s";
+                vEnv.style.opacity = "0";
+                vEndo.style.opacity = "0";
+                payload.style.transition = "all 4s cubic-bezier(0.1, 0.5, 0.2, 1)";
+                payload.style.transform = "translate(-80px, 40px) rotate(-110deg)";
+                document.getElementById('title').innerText = "RNPs Released";
+            }, 2000);
+        }, 1000);
+    }
+
+    // Start
+    init('hiv');
+</script>
+
+</body>
+</html>
