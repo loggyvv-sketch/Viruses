@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Viral Breach | H2 Biology 9744</title>
+    <style>
+        :root {
+            --bg: #05070a;
+            --membrane: #334155;
+            --hiv: #00d2ff;
+            --flu: #ff0055;
+            --gold: #fbbf24;
+            --glass: rgba(15, 23, 42, 0.85);
+        }
+
+        * { touch-action: none; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: #f8fafc;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- High-End UI --- */
+        header {
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(to bottom, #0f172a, transparent);
+            z-index: 100;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            padding: 10px 22px;
+            border-radius: 50px;
+            background: #1e293b;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #94a3b8;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn.active-hiv { border-color: var(--hiv); color: var(--hiv); box-shadow: 0 0 20px rgba(0, 210, 255, 0.3); }
+        .btn.active-flu { border-color: var(--flu); color: var(--flu); box-shadow: 0 0 20px rgba(255, 0, 85, 0.3); }
+
+        /* --- Simulation Stage --- */
+        #stage {
+            flex-grow: 1;
+            position: relative;
+            background: radial-gradient(circle at 50% 30%, #111827 0%, #05070a 100%);
+        }
+
+        svg { width: 100%; height: 100%; pointer-events: none; }
+
+        #drag-layer {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            left: calc(50% - 50px);
+            top: 15%;
+            z-index: 200;
+            cursor: grab;
+        }
+
+        /* --- Floating Info Card (Mobile Friendly) --- */
+        .info-card {
+            position: absolute;
+            bottom: 45px;
+            left: 15px;
+            right: 15px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            transform: translateY(0);
+            transition: transform 0.5s ease;
+        }
+
+        h2 { margin: 0 0 6px 0; font-size: 1.2rem; background: linear-gradient(90deg, #10b981, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        p { margin: 0; font-size: 0.9rem; color: #94a3b8; line-height: 1.6; }
+
+        .tag {
+            display: inline-block;
+            margin-bottom: 10px;
+            padding: 4px 12px;
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 8px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--gold);
+            text-transform: uppercase;
+        }
+
+        /* --- SVG Animation Styles --- */
+        #v-envelope { transition: stroke-dasharray 1s, opacity 0.8s, transform 1s; }
+        .spike { transition: opacity 0.5s; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-size: 0.6rem; color: #475569; letter-spacing: 3px; font-weight: 800;">VIRAL ENTRY ENGINE</div>
+    <div class="controls">
+        <button id="btn-hiv" class="btn" onclick="init('hiv')">HIV: DIRECT FUSION</button>
+        <button id="btn-flu" class="btn" onclick="init('flu')">FLU: ENDOCYTOSIS</button>
+    </div>
+</header>
+
+<div id="stage">
+    <div id="drag-layer"></div>
+    <svg id="canvas" viewBox="0 0 400 600">
+        <!-- SVG Filter for "Gooey" Fluid effect -->
+        <defs>
+            <filter id="goo">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo" />
+            </filter>
+        </defs>
+
+        <!-- Dynamic Membrane Group with Filter -->
+        <g filter="url(#goo)">
+            <path id="membrane" d="M -50 400 L 450 400" stroke="var(--membrane)" stroke-width="12" fill="none" />
+            <circle id="v-envelope" cx="0" cy="0" r="35" fill="none" stroke-width="10" />
+            <!-- Endosomal pocket for Flu -->
+            <circle id="endosome" cx="200" cy="400" r="0" fill="none" stroke="var(--membrane)" stroke-width="10" opacity="0" />
+        </g>
+
+        <!-- Non-gooey components -->
+        <g id="receptors">
+            <path d="M 190 395 L 190 375 Q 200 370 210 375 L 210 395" fill="var(--gold)" />
+            <rect id="hiv-coreceptor" x="220" y="380" width="8" height="15" fill="#ff0055" rx="2" opacity="0" />
+        </g>
+
+        <!-- Virus Visual Decorations -->
+        <g id="v-visuals">
+            <g id="spikes"></g>
+            <g id="payload">
+                <path d="M -6 -15 L 6 -15 L 0 15 Z" fill="white" opacity="0.8" />
+                <circle cx="12" cy="5" r="4" fill="white" opacity="0.5" />
+                <circle cx="-14" cy="2" r="3" fill="white" opacity="0.5" />
+            </g>
+        </g>
+    </svg>
+</div>
+
+<div class="info-card">
+    <div id="tag" class="tag">Ready</div>
+    <h2 id="title">Select Mechanism</h2>
+    <p id="desc">Drag the virus slowly toward the host cell receptors to begin the simulation.</p>
+</div>
+
+<script>
+    const membrane = document.getElementById('membrane');
+    const dragLayer = document.getElementById('drag-layer');
+    const vEnv = document.getElementById('v-envelope');
+    const vVis = document.getElementById('v-visuals');
+    const spikesGrp = document.getElementById('spikes');
+    const endo = document.getElementById('endosome');
+    const payload = document.getElementById('payload');
+    
+    let mode = '';
+    let state = 'idle';
+    let pos = { x: 200, y: 120 };
+
+    // --- 1. SETUP ---
+    function init(m) {
+        mode = m;
+        state = 'idle';
+        pos = { x: 200, y: 120 };
+
+        // UI Reset
+        document.querySelectorAll('.btn').forEach(b => b.className = 'btn');
+        document.getElementById(`btn-${m}`).classList.add(`active-${m}`);
+        document.getElementById('tag').innerText = "Targeting Receptors";
+        document.getElementById('tag').style.color = "var(--gold)";
+
+        // Animation Reset
+        dragLayer.style.top = "15%";
+        dragLayer.style.left = "calc(50% - 50px)";
+        
+        membrane.setAttribute('d', "M -50 400 L 450 400");
+        membrane.style.stroke = "var(--membrane)";
+        
+        vEnv.style.opacity = "1";
+        vEnv.setAttribute('stroke', m === 'hiv' ? 'var(--hiv)' : 'var(--flu)');
+        vEnv.style.strokeDasharray = "none";
+        vEnv.style.transform = "scale(1)";
+
+        endo.style.opacity = "0";
+        endo.setAttribute('r', "0");
+
+        payload.style.transition = "none";
+        payload.style.transform = "translate(0,0)";
+        payload.style.opacity = "1";
+
+        document.getElementById('hiv-coreceptor').style.opacity = m === 'hiv' ? "1" : "0";
+
+        // Create Spikes
+        spikesGrp.innerHTML = '';
+        for(let i=0; i<8; i++) {
+            const ang = (i / 8) * Math.PI * 2;
+            const x1 = Math.cos(ang) * 35;
+            const y1 = Math.sin(ang) * 35;
+            const x2 = Math.cos(ang) * 45;
+            const y2 = Math.sin(ang) * 45;
+            spikesGrp.innerHTML += `<line class="spike" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${m === 'hiv' ? 'var(--hiv)' : 'var(--flu)'}" stroke-width="4" stroke-linecap="round" />`;
+        }
+
+        updatePos();
+        document.getElementById('title').innerText = m === 'hiv' ? "HIV Attachment" : "Flu Attachment";
+        document.getElementById('desc').innerText = m === 'hiv' ? "gp120 spike binds to CD4." : "Hemagglutinin spike binds to sialic acid.";
+    }
+
+    // --- 2. DRAG ENGINE ---
+    dragLayer.addEventListener('pointermove', (e) => {
+        if (state !== 'idle' || e.buttons !== 1) return;
+
+        const stage = document.getElementById('stage').getBoundingClientRect();
+        pos.x = e.clientX - stage.left;
+        pos.y = e.clientY - stage.top;
+
+        dragLayer.style.left = (pos.x - 50) + 'px';
+        dragLayer.style.top = (pos.y - 50) + 'px';
+
+        updatePos();
+
+        // Membrane Attraction Ripple
+        const dist = 400 - pos.y;
+        if (dist < 100 && dist > 0) {
+            const pull = (100 - dist) / 1.5;
+            membrane.setAttribute('d', `M -50 400 Q 200 ${400 + pull} 450 400`);
+        }
+
+        // Contact Detection
+        if (pos.y > 365 && Math.abs(pos.x - 200) < 40) {
+            state = 'binding';
+            handleBinding();
+        }
+    });
+
+    function updatePos() {
+        vEnv.setAttribute('cx', pos.x);
+        vEnv.setAttribute('cy', pos.y);
+        vVis.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+    }
+
+    // --- 3. THE PAUSE & RECOGNITION ---
+    function handleBinding() {
+        pos.x = 200; pos.y = 365;
+        updatePos();
+        
+        document.getElementById('tag').innerText = "Specific Recognition";
+        document.getElementById('tag').style.color = "#10b981";
+        document.getElementById('desc').innerText = "Molecular interactions trigger a conformational change in viral glycoproteins.";
+
+        // Hide spikes during fusion/entry for visual clarity
+        document.querySelectorAll('.spike').forEach(s => s.style.opacity = '0');
+
+        setTimeout(() => {
+            state = 'entering';
+            mode === 'hiv' ? runHIV() : runFlu();
+        }, 1800);
+    }
+
+    // --- 4. HIV FUSION (Fluid Merging) ---
+    function runHIV() {
+        document.getElementById('title').innerText = "Membrane Fusion";
+        document.getElementById('desc').innerText = "The fluid viral envelope and host membrane merge. Notice how they become one continuous surface.";
+
+        // Morph membrane up to "catch" virus
+        membrane.style.transition = "all 1.2s cubic-bezier(0.4, 0, 0.2, 1)";
+        membrane.setAttribute('d', "M -50 400 Q 200 340 450 400");
+        
+        setTimeout(() => {
+            // Envelope melts into the goo
+            vEnv.style.transition = "all 1.5s ease";
+            vEnv.style.transform = "scaleY(0) translateY(40px)";
+            vEnv.style.opacity = "0";
+            membrane.style.stroke = "var(--hiv)";
+
+            setTimeout(() => {
+                document.getElementById('title').innerText = "Uncoating";
+                document.getElementById('desc').innerText = "Viral capsid is released into the cytosol. The envelope remains part of the cell surface.";
+                payload.style.transition = "all 4s cubic-bezier(0.1, 0.5, 0.2, 1)";
+                payload.style.transform = "translate(60px, 150px) rotate(45deg)";
+            }, 1000);
+        }, 600);
+    }
+
+    // --- 5. FLU ENDOCYTOSIS (Vesicle Scission) ---
+    function runFlu() {
+        document.getElementById('title').innerText = "Endocytosis";
+        document.getElementById('desc').innerText = "The membrane invaginates, forming a fluid-filled pocket around the virus.";
+
+        // Invaginate
+        membrane.style.transition = "all 2s cubic-bezier(0.4, 0, 0.2, 1)";
+        membrane.setAttribute('d', "M -50 400 L 160 400 A 40 50 0 1 0 240 400 L 450 400");
+        
+        pos.y = 410;
+        updatePos();
+
+        setTimeout(() => {
+            // Scission (Pinching off)
+            membrane.setAttribute('d', "M -50 400 L 450 400");
+            endo.style.opacity = "1";
+            endo.setAttribute('r', "45");
+            endo.setAttribute('cy', "410");
+            
+            document.getElementById('title').innerText = "Endosome Formation";
+            document.getElementById('desc').innerText = "The virus is now enclosed in a double membrane (Viral + Endosomal).";
+
+            setTimeout(() => {
+                // Move Endosome deeper
+                pos.y = 530;
+                endo.style.transition = "all 1.5s ease";
+                endo.setAttribute('cy', "530");
+                updatePos();
+
+                setTimeout(() => {
+                    document.getElementById('title').innerText = "Low pH Fusion";
+                    document.getElementById('desc').innerText = "Acidification triggers fusion of both membranes, releasing RNPs into the cytoplasm.";
+                    
+                    vEnv.style.transition = "all 1s";
+                    endo.style.transition = "all 1s";
+                    vEnv.style.opacity = "0";
+                    endo.style.opacity = "0";
+                    
+                    setTimeout(() => {
+                        payload.style.transition = "all 4s cubic-bezier(0.1, 0.5, 0.2, 1)";
+                        payload.style.transform = "translate(-80px, 40px) rotate(-110deg)";
+                    }, 500);
+                }, 2000);
+            }, 1000);
+        }, 2000);
+    }
+
+    // Start Simulation
+    init('hiv');
+</script>
+
+</body>
+</html>
