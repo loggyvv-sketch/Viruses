@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Viral Entry | H2 Biology 9744</title>
+    <style>
+        :root {
+            --bg: #080a0f;
+            --cell-membrane: #475569;
+            --hiv-color: #38bdf8;
+            --flu-color: #fb7185;
+            --text: #f8fafc;
+        }
+
+        * { touch-action: none; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* UI Headers */
+        header {
+            padding: 20px;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.9);
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 30px;
+            border: 2px solid #334155;
+            background: transparent;
+            color: #94a3b8;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.4s ease;
+        }
+
+        .btn.active-hiv { border-color: var(--hiv-color); color: var(--hiv-color); box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+        .btn.active-flu { border-color: var(--flu-color); color: var(--flu-color); box-shadow: 0 0 15px rgba(251, 113, 133, 0.2); }
+
+        /* Simulation Stage */
+        #stage {
+            flex-grow: 1;
+            position: relative;
+            background: radial-gradient(circle at center, #111827 0%, #080a0f 100%);
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Virus Styling */
+        #virus-group {
+            cursor: grab;
+        }
+
+        .virus-envelope {
+            fill: rgba(255, 255, 255, 0.05);
+            stroke-width: 3;
+            transition: stroke-dasharray 1s ease, opacity 1s ease;
+        }
+
+        .genome {
+            font-size: 10px;
+            font-weight: bold;
+            fill: white;
+            text-anchor: middle;
+            pointer-events: none;
+            transition: transform 3s cubic-bezier(0.2, 0, 0.3, 1), opacity 1s ease;
+        }
+
+        /* Information Panel */
+        .info-panel {
+            height: 180px;
+            padding: 20px;
+            background: #0f172a;
+            border-top: 2px solid #1e293b;
+            text-align: center;
+        }
+
+        #step-title { color: #22c55e; margin: 0 0 8px 0; font-size: 1.1rem; }
+        #step-desc { font-size: 0.9rem; color: #94a3b8; line-height: 1.5; max-width: 500px; margin: 0 auto; }
+
+        #drag-hint {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 20px;
+            color: #fde047;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-size: 0.7rem; color: #475569; letter-spacing: 2px; margin-bottom: 5px;">9744 H2 BIOLOGY SYLLABUS</div>
+    <div class="controls">
+        <button id="btn-hiv" class="btn" onclick="init('hiv')">HIV (Fusion)</button>
+        <button id="btn-flu" class="btn" onclick="init('flu')">FLU (Endocytosis)</button>
+    </div>
+</header>
+
+<div id="stage">
+    <div id="drag-hint">DRAG VIRUS SLOWLY TO RECEPTORS</div>
+    <svg id="canvas" viewBox="0 0 400 600" preserveAspectRatio="xMidYMid slice">
+        <!-- Host Membrane -->
+        <path id="membrane" d="M -50 450 Q 200 450 450 450" stroke="#475569" stroke-width="6" fill="none" />
+        
+        <!-- Receptors -->
+        <g id="receptors">
+            <line x1="200" y1="450" x2="200" y2="425" stroke="#fde047" stroke-width="4" stroke-linecap="round" />
+            <line id="co-rec" x1="220" y1="450" x2="220" y2="430" stroke="#fb7185" stroke-width="3" stroke-linecap="round" />
+        </g>
+
+        <!-- Virus -->
+        <g id="virus-group" transform="translate(200, 150)">
+            <circle id="v-env" class="virus-envelope" cx="0" cy="0" r="35" stroke="white" />
+            <g id="v-contents">
+                <circle r="15" fill="rgba(255,255,255,0.1)" />
+                <text id="v-text" y="5" class="genome">CAPSID</text>
+            </g>
+        </g>
+    </svg>
+</div>
+
+<div class="info-panel">
+    <h3 id="step-title">Select Virus</h3>
+    <p id="step-desc">Grounded in the 9744 syllabus. Start by selecting a viral mechanism above.</p>
+</div>
+
+<script>
+    const virusGroup = document.getElementById('virus-group');
+    const vEnv = document.getElementById('v-env');
+    const vContents = document.getElementById('v-contents');
+    const membrane = document.getElementById('membrane');
+    const stepTitle = document.getElementById('step-title');
+    const stepDesc = document.getElementById('step-desc');
+    const coRec = document.getElementById('co-rec');
+
+    let currentMode = '';
+    let isDragging = false;
+    let isFused = false;
+
+    function init(mode) {
+        currentMode = mode;
+        isFused = false;
+        
+        // Reset Buttons
+        document.getElementById('btn-hiv').className = 'btn' + (mode === 'hiv' ? ' active-hiv' : '');
+        document.getElementById('btn-flu').className = 'btn' + (mode === 'flu' ? ' active-flu' : '');
+
+        // Reset Visuals
+        virusGroup.setAttribute('transform', 'translate(200, 150)');
+        vEnv.style.opacity = '1';
+        vEnv.style.strokeDasharray = 'none';
+        vContents.style.transform = 'translateY(0)';
+        vContents.style.opacity = '1';
+        membrane.setAttribute('d', 'M -50 450 Q 200 450 450 450');
+        
+        if (mode === 'hiv') {
+            vEnv.setAttribute('stroke', 'var(--hiv-color)');
+            document.getElementById('v-text').textContent = 'gp120';
+            coRec.style.display = 'block';
+            stepTitle.innerText = "Target: Helper T-Cell";
+            stepDesc.innerText = "HIV gp120 binds to CD4. Drag the virus down to simulate attachment.";
+        } else {
+            vEnv.setAttribute('stroke', 'var(--flu-color)');
+            document.getElementById('v-text').textContent = 'HA';
+            coRec.style.display = 'none';
+            stepTitle.innerText = "Target: Epithelial Cell";
+            stepDesc.innerText = "Influenza Hemagglutinin binds to Sialic Acid. Drag down to trigger endocytosis.";
+        }
+    }
+
+    // SLOW DRAG LOGIC
+    virusGroup.addEventListener('pointerdown', (e) => {
+        if (!currentMode || isFused) return;
+        isDragging = true;
+        virusGroup.setPointerCapture(e.pointerId);
+    });
+
+    window.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+
+        const svg = document.getElementById('canvas');
+        const point = svg.createSVGPoint();
+        point.x = e.clientX;
+        point.y = e.clientY;
+        const coords = point.matrixTransform(svg.getScreenCTM().inverse());
+
+        // Slow movement by interpolating (limiting speed)
+        virusGroup.setAttribute('transform', `translate(${coords.x}, ${coords.y})`);
+
+        // Check for contact
+        if (coords.y > 385 && Math.abs(coords.x - 200) < 40) {
+            isDragging = false;
+            startEntryMechanism();
+        }
+    });
+
+    function startEntryMechanism() {
+        isFused = true;
+        virusGroup.setAttribute('transform', 'translate(200, 415)');
+
+        if (currentMode === 'hiv') {
+            executeHIVFusion();
+        } else {
+            executeFluEndocytosis();
+        }
+    }
+
+    function executeHIVFusion() {
+        stepTitle.innerText = "Membrane Fusion";
+        stepDesc.innerText = "gp41 brings the membranes together. Watch as the viral envelope merges with the host surface membrane...";
+
+        // 1. Clear the border line slowly
+        vEnv.style.strokeDasharray = "110 220"; // Only show the top half
+        vEnv.style.transform = "rotate(180deg)";
+        
+        setTimeout(() => {
+            // 2. Dissolve the envelope into the membrane
+            vEnv.style.opacity = "0";
+            membrane.setAttribute('stroke', 'var(--hiv-color)');
+            
+            // 3. Release contents slowly
+            setTimeout(() => {
+                stepTitle.innerText = "Uncoating";
+                stepDesc.innerText = "The viral envelope is now part of the cell membrane. The CAPSID is slowly released into the cytosol.";
+                vContents.style.transform = "translateY(100px)";
+                document.getElementById('v-text').textContent = 'CAPSID';
+            }, 1000);
+        }, 1500);
+    }
+
+    function executeFluEndocytosis() {
+        stepTitle.innerText = "Receptor-Mediated Endocytosis";
+        stepDesc.innerText = "The cell membrane invaginates, slowly wrapping around the virus particle...";
+
+        // 1. Animate membrane curving (The wrap)
+        membrane.setAttribute('d', 'M -50 450 Q 200 450 160 450 A 40 40 0 1 0 240 450 Q 200 450 450 450');
+
+        setTimeout(() => {
+            // 2. Form the endosome (circle breaks off)
+            stepTitle.innerText = "Endosome Formation";
+            stepDesc.innerText = "The virus is now fully enclosed in an endosome. It moves deeper into the cell.";
+            virusGroup.setAttribute('transform', 'translate(200, 520)');
+            membrane.setAttribute('d', 'M -50 450 Q 200 450 450 450');
+            vEnv.style.strokeDasharray = "5, 5"; // Endosome visual
+            
+            setTimeout(() => {
+                // 3. Fusion in endosome
+                stepTitle.innerText = "Endosomal Fusion";
+                stepDesc.innerText = "Inside the endosome, Low pH triggers HA to fuse the membranes. RNPs are slowly released.";
+                vEnv.style.opacity = "0";
+                vContents.style.transform = "translateY(50px)";
+                document.getElementById('v-text').textContent = 'RNPs';
+            }, 2000);
+        }, 2000);
+    }
+
+    // Start with HIV
+    init('hiv');
+</script>
+
+</body>
+</html>
